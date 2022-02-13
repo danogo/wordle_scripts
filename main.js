@@ -22,6 +22,34 @@
         const presentLetters = new Map();
         const correctSpotLetters = new Map();
 
+        const deleteInvalidWord = word => {
+            for (let [letter, spot] of correctSpotLetters.entries()) {
+                if (word.indexOf(letter) !== spot) {
+                    words.delete(word);
+                    return word;
+                }
+            }
+            for (let letter of absentLetters.values()) {
+                if (word.indexOf(letter) !== -1) {
+                    words.delete(word);
+                    return word;
+                }
+            }
+            for (let [letter, wrongSpots] of presentLetters.entries()) {
+                if (word.indexOf(letter) === -1) {
+                    words.delete(word);
+                    return;
+                } else {
+                     for (let spot of wrongSpots) {
+                        if (word.indexOf(letter) === spot) {
+                            words.delete(word);
+                            return word;
+                        }
+                    }
+                }
+            }
+        }
+
         boardRows.forEach(row => {
            if (row.attributes.letters.value !== '') {
                const rowSDOM = row.shadowRoot;
@@ -31,17 +59,20 @@
                    const letterState = tile.getAttribute('evaluation')
                        switch (letterState) {
                            case 'correct':
-                               if (!correctSpotLetters.has(letter)) {
-                                   correctSpotLetters.set(letter, index);
-                                   for (let [presentLetter, wrongSpots] of presentLetters.entries()) {
-                                       if (presentLetter !== letter) {
-                                           wrongSpots.add(index);
-                                       }
+                               if (absentLetters.has(letter)) absentLetters.delete(letter); // if has been found in the same word in correct spot after adding to absent before
+                               correctSpotLetters.set(letter, index);
+                               for (let [presentLetter, wrongSpots] of presentLetters.entries()) {
+                                   if (presentLetter !== letter) {
+                                       wrongSpots.add(index);
                                    }
                                }
                                break;
                            case 'absent':
-                               absentLetters.add(letter);
+                               if (!correctSpotLetters.has(letter)) { // add to absent only if isn't already in correct
+                                   absentLetters.add(letter);
+                               } else if (presentLetters.has(letter)) { // if was present in previous words, now in one word is first correct and then absent
+                                   presentLetters.delete(letter);
+                               }
                                break;
                            case 'present':
                                if (presentLetters.has(letter)) {
@@ -54,37 +85,12 @@
                            default:
                                console.log('hello wordle');
                        }
-
                });
            }
-
         })
+
         for (let word of words.values()) {
-            for (let [letter, spot] of correctSpotLetters.entries()) {
-                if (word.indexOf(letter) !== spot) {
-                    words.delete(word);
-                    break;
-                }
-            }
-            for (let letter of absentLetters.values()) {
-                if (word.indexOf(letter) !== -1) {
-                    words.delete(word);
-                    break;
-                }
-            }
-            for (let [letter, wrongSpots] of presentLetters.entries()) {
-                if (word.indexOf(letter) === -1) {
-                    words.delete(word);
-                    break;
-                } else {
-                     for (let spot of wrongSpots) {
-                        if (word.indexOf(letter) === spot) {
-                            words.delete(word);
-                            break;
-                        }
-                    }
-                }
-            }
+            deleteInvalidWord(word);
         }
 
         console.log(`# Possible entries(${words.size}):`);
