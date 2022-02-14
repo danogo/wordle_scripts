@@ -86,7 +86,7 @@
       for (let word of words.values()) {
         deleteInvalidWord(word);
       }
-  
+      console.clear();
       console.log(`# Possible entries(${words.size}):`);
       for (let word of words.values()) {
         console.log(word);
