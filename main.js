@@ -26,7 +26,7 @@
   const indexWrongLetters = new Map(); // for present, index - wrong letters
   const indexesToCheck = new Set([0, 1, 2, 3, 4]);
 
-  const deleteInvalidWord = word => {
+  const validateWord = word => {
     const wordLetters = [...word];
     for (let [index, letter] of correctIndexes.entries()) {
       if (wordLetters[index] !== letter) {
@@ -51,48 +51,56 @@
     }
   } 
 
-  const processRow = row => {
-    if (row.attributes.letters.value !== '') {
-      const rowSDOM = row.shadowRoot;
-      const letterTiles = rowSDOM.querySelectorAll('game-tile');
-      letterTiles.forEach(function(tile, index) {
-          const letter = tile.getAttribute('letter');
-          const letterState = tile.getAttribute('evaluation');
-          switch (letterState) {
-              case 'correct':
-                if (presentLetters.has(letter)) {
-                  presentLetters.delete(letter);
-                }
-                correctIndexes.set(index, letter);
-                indexesToCheck.delete(index)
-                break;
-              case 'absent':
-                if (!presentLetters.has(letter)) { // if first found as present and then as absent in the same word dont add to absent
-                  absentLetters.add(letter);
-                }
-                break;
-              case 'present':
-                  presentLetters.add(letter);
-                  if (indexWrongLetters.has(index)) {
-                    const wrongLetters = indexWrongLetters.get(index);
-                    wrongLetters.add(letter);
-                  } else {
-                    indexWrongLetters.set(index, new Set([letter]));
+  const processRows = () => {
+    boardRows.forEach(row =>  {
+      if (row.attributes.letters.value !== '') {
+        const rowSDOM = row.shadowRoot;
+        const letterTiles = rowSDOM.querySelectorAll('game-tile');
+        letterTiles.forEach(function(tile, index) {
+            const letter = tile.getAttribute('letter');
+            const letterState = tile.getAttribute('evaluation');
+            switch (letterState) {
+                case 'correct':
+                  if (presentLetters.has(letter)) {
+                    presentLetters.delete(letter);
+                  }
+                  correctIndexes.set(index, letter);
+                  indexesToCheck.delete(index)
+                  break;
+                case 'absent':
+                  if (!presentLetters.has(letter)) { // if first found as present and then as absent in the same word dont add to absent
+                    absentLetters.add(letter);
                   }
                   break;
-              default:
-                  console.log('hello wordle');
-          }
-      });
-    } 
+                case 'present':
+                    presentLetters.add(letter);
+                    if (indexWrongLetters.has(index)) {
+                      const wrongLetters = indexWrongLetters.get(index);
+                      wrongLetters.add(letter);
+                    } else {
+                      indexWrongLetters.set(index, new Set([letter]));
+                    }
+                    break;
+                default:
+                    console.log('hello wordle');
+            }
+        });
+      } 
+    });
+  }
+
+  const getNumOfEmptyRows = () => {
+    let sum = 0;
+    boardRows.forEach(row => row.attributes.letters.value === '' ? sum++ : sum);
+    return sum;
   }
 
   const deleteInvalidWords = () => {
     for (let word of words.values()) {
-      const wordToDelete = deleteInvalidWord(word);
+      const wordToDelete = validateWord(word);
       if (wordToDelete !== undefined) {
         words.delete(wordToDelete);
-      };
+      }
     }
   }
 
@@ -107,26 +115,23 @@
     gameElement = document.querySelector('game-app');
     gameSDOM = gameElement.shadowRoot;
     boardRows = gameSDOM.querySelectorAll('game-row');
-    boardRows.forEach(row => {
-      processRow(row);
-    });
-  })
+    processRows();
+    deleteInvalidWords();
+  });
   
   window.addEventListener('keydown', function(event) {
     if (event.key === ' ') {
-      console.clear();
-      for (let i = 0; i < 6; i++) {
+      const numOfEmptyRows = getNumOfEmptyRows();
+      for (let i = 0; i < numOfEmptyRows; i++) {
         window.setTimeout(function() {
           if (words.size > 0) {
+            processRows();
+            deleteInvalidWords();
             const wordsArr = Array.from(words);
             const entryIndex = Math.floor(Math.random() * wordsArr.length);
             const entryWord = wordsArr[entryIndex];
             addWord(entryWord);
             window.dispatchEvent(customEnterEvent);
-            boardRows.forEach(row => {
-              processRow(row);
-            });
-            deleteInvalidWords();
           }
         }, 2000*i);
       }
